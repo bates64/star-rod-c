@@ -4,7 +4,8 @@ INCLUDE_DIRS = papermario/include papermario/include/PR
 TOOLS_DIR    = papermario/tools
 SRC_DIRS     = $(MOD_DIR)/global/patch
 
-CC = $(TOOLS_DIR)/cc1
+CC     = $(TOOLS_DIR)/cc1
+PYTHON = python3.8
 
 CPPFLAGS = $(foreach dir,$(INCLUDE_DIRS),-I$(dir)) -D _LANGUAGE_C -ffreestanding -DF3DEX_GBI_2
 CFLAGS   = -O2 -quiet -G 0 -mcpu=vr4300 -mfix4300 -mips3 -mgp32 -mfp32
@@ -14,8 +15,8 @@ PATCH_FILES=$(C_FILES:.c=.patch)
 
 all: $(PATCH_FILES)
 
-$(MOD_DIR)/%.patch: $(MOD_DIR)/%.c
-	cpp $(CPPFLAGS) $(MOD_DIR)/$< | $(CC) $(CFLAGS) -o - | python3 asm-to-patch.py > $(MOD_DIR)/$@
+%.patch: %.c
+	cpp $(CPPFLAGS) $< | $(CC) $(CFLAGS) -o - | $(PYTHON) asm-to-patch.py >$@
 
 submodules:
 	# note: no --recursive, we don't n64splat etc
