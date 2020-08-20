@@ -1,3 +1,6 @@
-[submodule "decomp"]
-	path = decomp
+[submodule "papermario"]
+	path = papermario
 	url = https://github.com/ethteck/papermario.git
+	branch = master
+	update = checkout
+	shallow = true

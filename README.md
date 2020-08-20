@@ -4,13 +4,22 @@ Star Rod C is a tool that lets you compile C code to global patch files (map/bat
 
 Currently supports Linux (Ubuntu, Arch) only, but the output is portable. You can also use WSL or a Linux VM.
 
-#### Installation
+### Installation
 
-* Have a copy of [Star Rod](https://github.com/nanaian/star-rod)
-* Clone or download this repository to the subdirectory `star-rod-c` of Star Rod
-* Run `make -C star-rod-c setup`
+You'll need:
+* A [Star Rod](https://github.com/nanaian/star-rod) mod folder
+* git
 
-#### Usage example
+Run the following commands:
+```sh
+$ cd /path/to/mod/folder
+
+$ git init
+$ git submodule add https://github.com/nanaian/star-rod-c.git
+$ make -C star-rod-c setup
+```
+
+### Usage
 
 Create a `global/patch/foo.c` file in your mod folder:
 
@@ -25,7 +34,7 @@ ApiStatus ExampleFunction(ScriptInstance* script, s32 isInitialCall) {
 }
 ```
 
-Run Star Rod C: `MOD_DIR=/path/to/mod make -C star-rod-c`
+Run Star Rod C: `make -C star-rod-c`
 
 This should produce a `global/patch/foo.patch` file. All functions are `#export`ed unless their name begins with `_`.
 
@@ -44,4 +53,4 @@ You can then use the global patch as usual, in any script. For example:
 }
 ```
 
-Running `MOD_DIR=/path/to/mod make -C star-rod-c` will compile all `globals/patch/*.c` files to a `*.patch` file in the same directory. `make` won't recompile files that haven't been modified since the last time it was run.
+Running `make -C star-rod-c` will compile all `globals/patch/*.c` files to a `*.patch` file in the same directory. `make` won't recompile files that haven't been modified since the last time it was run.

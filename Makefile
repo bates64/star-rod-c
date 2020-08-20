@@ -1,16 +1,9 @@
-# options (use env variables)
-TARGET = papermario
-ifndef MOD_DIR
-MOD_DIR = .
-endif
+MOD_DIR ?= ..
 
-INCLUDE_DIRS = decomp/include decomp/include/PR
-TOOLS_DIR    = decomp/tools
+INCLUDE_DIRS = papermario/include papermario/include/PR
+TOOLS_DIR    = papermario/tools
 SRC_DIRS     = $(MOD_DIR)/global/patch
 
-ifndef STARROD
-STARROD = cd .. && java -jar -mx2G StarRod.jar
-endif
 CC = $(TOOLS_DIR)/cc1
 
 CPPFLAGS = $(foreach dir,$(INCLUDE_DIRS),-I$(dir)) -D _LANGUAGE_C -ffreestanding -DF3DEX_GBI_2
@@ -25,12 +18,10 @@ $(MOD_DIR)/%.patch: $(MOD_DIR)/%.c
 	cpp $(CPPFLAGS) $(MOD_DIR)/$< | $(CC) $(CFLAGS) -o - | python3 asm-to-patch.py > $(MOD_DIR)/$@
 
 submodules:
-	git submodule update --init --recursive
+	# note: no --recursive, we don't n64splat etc
+	git submodule update --init
 
 setup: submodules
-	./decomp/install.sh --extra
+	./papermario/install.sh --extra
 
 .PHONY: setup submodules
-
-$(MOD_DIR)/$(TARGET).z64:
-	$(STARROD) -CompileMod
