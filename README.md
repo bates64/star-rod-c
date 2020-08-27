@@ -1,8 +1,8 @@
 # Star Rod C
 
-Star Rod C is a tool that lets you compile C code to global patch files (map/battle coming soon) using tools and header files from the [Paper Mario decompilation](https://github.com/ethteck/papermario) effort. [Star Rod](https://github.com/nanaian/star-rod) is used as the assembler and linker.
+Star Rod C is a tool that lets you compile C code to patch files using tools and headers from the [Paper Mario decompilation](https://github.com/ethteck/papermario). [Star Rod](https://github.com/nanaian/star-rod) is used as the assembler and linker.
 
-Currently supports Linux (Ubuntu, Arch) only, but the output is portable. You can also use WSL or a Linux VM.
+Currently supports Linux (Ubuntu, Arch) only, but the output is portable. You can also use WSL2 or a Linux VM.
 
 ### Installation
 
@@ -10,10 +10,8 @@ You'll need:
 * A [Star Rod](https://github.com/nanaian/star-rod) mod folder
 * git
 
-Run the following commands.
+`cd` to your mod folder and run the following commands:
 ```sh
-$ cd /path/to/mod/folder
-
 $ git init
 $ git submodule add https://github.com/nanaian/star-rod-c.git
 $ make -C star-rod-c setup
