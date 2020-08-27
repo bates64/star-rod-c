@@ -5,6 +5,9 @@ import os
 # opts
 INDENT = os.environ.get("INDENT") or "\t"
 PRINT_ORIGINAL_ASM = False
+PRETTY_SPACE_ARGS = True
+
+IS_GLOBAL_PATCH = "globals/patch/" in sys.argv[1]
 
 REGISTERS = {
     "$0": "R0",
@@ -43,22 +46,41 @@ REGISTERS = {
 for i in range(0, 32):
     REGISTERS[f"$f{i}"] = f"F{i}"
 
+GLOBAL_SYMBOLS = {}
+with open("papermario/undefined_syms.txt", "r") as f:
+    for line in f.readlines():
+        if match := re.match(r"^(\w+)\s*=\s*0x([0-9a-fA-F]+);$", line): # .globl
+            symbol = match[1]
+            address = int(match[2], 16)
+            GLOBAL_SYMBOLS[symbol] = address
+
 def eprint(message):
     print(message, file=sys.stderr)
 
 # state
 globls = []
 in_function = False
+function_directive_written = False
 label = None
 values = {}
 reorder_delay_slot = True
 
 after_fn_buffer = ""
 def print_after_fn(text):
+    global after_fn_buffer
     if in_function:
         after_fn_buffer += text + "\n"
     else:
         print(text)
+def end_function():
+    global in_function, function_directive_written, after_fn_buffer
+    if in_function and function_directive_written:
+        print("}")
+        in_function = False
+
+    if len(after_fn_buffer) > 0:
+        print(after_fn_buffer, end=None)
+        after_fn_buffer = ""
 
 for line in sys.stdin.readlines():
     line = re.sub(r"#.*$", '', line.strip()).strip()
@@ -67,51 +89,52 @@ for line in sys.stdin.readlines():
         continue
 
     if match := re.match(r"^.globl\s*(.*)", line): # .globl
+        end_function()
         globls.append(match.group(1))
     elif re.match(r"^.set\s*noreorder", line): # .set noreorder
         reorder_delay_slot = False
     elif re.match(r"^.set\s*reorder", line): # .set reorder
         reorder_delay_slot = True
     elif re.match(r"^.end\s", line): # .end
-        if in_function:
-            print("}\n")
-            in_function = False
-
-            if len(after_fn_buffer) > 0:
-                print(after_fn_buffer, end=None)
-                after_fn_buffer = ""
-        else:
-            error("warning: found end of function but not in one")
+        # ends the file
+        end_function()
+        break
     elif match := re.match(r"^.ascii\s*(.*)", line): # .ascii
         # star rod inserts null terminator
         s = match.group(1)[1:-5]
-        print_after_fn(f'#new:ASCII {label} {{ "{s}" }}\n')
+        print_after_fn(f'\n#new:ASCII {label} {{ "{s}" }}')
+    elif match := re.match(r"^.word\s*(.*)", line): # .word
+        # TODO: .word 0,1,2
+        print(f'#new:{"Data" if IS_GLOBAL_PATCH else "IntTable"} ${label} {{ {int(match[1]):X} }}')
+    elif match := re.match(r"^.frame", line): # .frame
+        # only to detect a function
+        if not function_directive_written:
+            print(f"#new:Function ${label} {{")
+            function_directive_written = True
     elif re.match(r"^\.[a-z]", line): # .*
         continue
     elif match := re.match(r"^(.*):$", line): # label:
         label = match.group(1)
 
         if label in globls:
-            if in_function:
+            if in_function and function_directive_written:
                 eprint(f"warning: found function {label} within another function")
                 continue
             in_function = True
 
             values[label] = f"${label}"
-            print(f"#new:Function ${label} {{")
+            function_directive_written = False
 
-            if label[0] != "_":
+            if label[0] != "_" and IS_GLOBAL_PATCH:
                 after_fn_buffer += f"#export ${label}\n"
-        elif in_function:
+        elif in_function and function_directive_written:
             print(f"{INDENT}.{label[1:]}")
     elif in_function: # asm
-        mnemonic, args = line.split(None, 1)
+        if not function_directive_written:
+            print(f"#new:Function ${label} {{")
+            function_directive_written = True
 
-        if mnemonic == "li": mnemonic = "LIO" # TODO(Star Rod 0.4.0): remove this
-        if mnemonic == "la": mnemonic = "LIA" # "
-        if mnemonic == "li.s": mnemonic = "LIF" # "
-        if mnemonic == "li.w": mnemonic = "LIF" # "
-        if mnemonic == "move": mnemonic = "COPY"
+        mnemonic, args = line.split(None, 1)
         mnemonic = mnemonic.upper()
 
         match = re.match(r"^([^,]+)(?:,([^(,]+))?(?:[(,]([^)]+)\)?)?$", args)
@@ -119,7 +142,7 @@ for line in sys.stdin.readlines():
             eprint("error: unable to parse asm:")
             eprint(line)
             exit(1)
-        
+
         if PRINT_ORIGINAL_ASM:
             print(f"{INDENT}% {line}")
 
@@ -138,17 +161,26 @@ for line in sys.stdin.readlines():
                 text = REGISTERS[text]
                 has_register = True
             else:
-                # hex
-                text = re.sub(r"^0x[0-9a-fA-F]+$", lambda m: f"{int(m[0], 16):X}", text)
+                # hex (0xabc -> ABC)
+                text = re.sub(r"^-?0x[0-9a-fA-F]+$", lambda m: f"{int(m[0], 16):X}", text)
 
-                # dec
-                text = re.sub(r"^([0-9]+)$", r"\1`", text)
+                # dec (dec -> hex)
+                text = re.sub(r"^(-?[0-9]+)$", lambda m: f"{int(m[0]):X}", text)
 
                 # float
-                text = re.sub(r"^([0-9]+\.[0-9e]+)", lambda m: f"{float(m[0]):f}", text)
+                text = re.sub(r"^(-?[0-9]+\.[0-9e]+)", lambda m: f"{float(m[0]):f}", text)
 
                 # label ($LX -> .LX)
                 text = re.sub(r"^\$(L[0-9]+)$", r".\1", text)
+
+                # global symbol (symbol+offset -> address)
+                def handle_symbol(m):
+                    if m[1] in GLOBAL_SYMBOLS:
+                        address = GLOBAL_SYMBOLS[m[1]]
+                        offset = int(m[3]) if m[2] else 0
+                        return f"{address + offset:X}"
+                    return m[0]
+                text = re.sub(r"^(\w+)(\+([0-9]+))?$", handle_symbol, text)
 
             if text != old_text:
                 # replace match with updated text
@@ -157,13 +189,47 @@ for line in sys.stdin.readlines():
                 offset += len(text) - len(old_text)
                 replaced = True
 
+        if mnemonic == "MOVE":
+            mnemonic = "COPY"
+
+        # TODO(Star Rod 0.4.0): add option not to perform LI transformations
+        if mnemonic == "LI":
+            mnemonic = "LIO"
+            if m := re.search(r",(-?[0-9A-F]+)", args):
+                if (int(m[1], 16) & 0xFFFF0000) == 0:
+                    # halfword-sized
+                    mnemonic = "ORI"
+                    args = re.sub(r",", ",R0,", args)
+        if mnemonic == "LA":
+            mnemonic = "LIA"
+            if m := re.search(r",(-?[0-9A-F]+)", args):
+                if (int(m[1], 16) & 0xFFFF0000) == 0:
+                    # halfword-sized
+                    mnemonic = "ADDIU"
+                    args = re.sub(r",", ",R0,", args)
+
+        if mnemonic == "LI.S": mnemonic = "LIF"
+        if mnemonic == "LI.W": mnemonic = "LIF"
+
         if mnemonic == "J" and has_register:
             mnemonic = "JR"
-        
+
         if mnemonic == "JAL" and not replaced:
             args = f"~Func:{args}"
 
-        print(f"{INDENT}{mnemonic:<7} {args}")
+        if (mnemonic in ["SB", "SH", "SW", "SF", "LB", "LH", "LW", "LF"]) and not "(" in args:
+            mnemonic = mnemonic[0] + "A" + mnemonic[1]
+
+        if (mnemonic == "ADDU" or mnemonic == "SUBU") and re.search(r",[0-9A-F]", args):
+            if mnemonic == "SUBU":
+                args = re.sub(r",([0-9A-F]+)", lambda m: f",-{m[1]}", args)
+            mnemonic = "ADDIU"
+
+        if PRETTY_SPACE_ARGS:
+            args = args.replace(",", ", ")
+            args = args.replace("(", " (")
+
+        print(f"{INDENT}{mnemonic:<9} {args}")
 
         if reorder_delay_slot and (mnemonic[0] == "J" or mnemonic[0] == "B"):
-            print(f"{INDENT}NOP")
+            print(f"{INDENT}RESERVED")

@@ -10,7 +10,7 @@ You'll need:
 * A [Star Rod](https://github.com/nanaian/star-rod) mod folder
 * git
 
-Run the following commands:
+Run the following commands.
 ```sh
 $ cd /path/to/mod/folder
 
@@ -21,7 +21,7 @@ $ make -C star-rod-c setup
 
 ### Usage
 
-Create a `global/patch/foo.c` file in your mod folder:
+Create a `globals/patch/foo.c` file in your mod folder:
 
 ```c
 #include "common.h"
@@ -36,7 +36,7 @@ ApiStatus ExampleFunction(ScriptInstance* script, s32 isInitialCall) {
 
 Run Star Rod C: `make -C star-rod-c`
 
-This should produce a `global/patch/foo.patch` file. All functions are `#export`ed unless their name begins with `_`.
+This should produce a `globals/patch/foo.patch` file. All functions are `#export`ed unless their name begins with `_`.
 
 You can then use the global patch as usual, in any script. For example:
 ```starrod
@@ -54,3 +54,7 @@ You can then use the global patch as usual, in any script. For example:
 ```
 
 Running `make -C star-rod-c` will compile all `globals/patch/*.c` files to a `*.patch` file in the same directory. `make` won't recompile files that haven't been modified since the last time it was run.
+
+### Known issues
+
+* You may not name a function `main`.
