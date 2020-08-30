@@ -232,8 +232,12 @@ for line in sys.stdin.readlines():
             mnemonic = "BEQ"
             args = f"R0,R0,{args}"
 
-        if mnemonic == "JAL" and not replaced:
-            args = f"~Func:{args}"
+        if mnemonic == "JAL":
+            if not replaced:
+                args = f"~Func:{args}"
+            elif m := re.match(r"(..),(..)$", args):
+                mnemonic = "JALR"
+                args = f"{m[2]},{m[1]}"
 
         if (mnemonic in LOAD_STORES) and not "(" in args:
             mnemonic = mnemonic[0] + "A" + mnemonic[1]
