@@ -54,9 +54,9 @@ LOAD_STORES = [
 ]
 
 GLOBAL_SYMBOLS = {}
-with open("papermario/undefined_syms.txt", "r") as f:
+with open("papermario/ver/us/symbol_addrs.txt", "r") as f:
     for line in f.readlines():
-        if match := re.match(r"^(\w+)\s*=\s*0x([0-9a-fA-F]+);$", line): # .globl
+        if match := re.match(r"^(\w+)\s*=\s*0x([0-9a-fA-F]+);", line): # .globl
             symbol = match[1]
             address = int(match[2], 16)
             GLOBAL_SYMBOLS[symbol] = address
@@ -114,7 +114,7 @@ for line in sys.stdin.readlines():
     elif match := re.match(r"^.frame", line): # .frame
         # only to detect a function
         if not function_directive_written:
-            print(f"#new:Function ${label} {{")
+            print(f"#export:Function ${label} {{")
             function_directive_written = True
     elif re.match(r"^\.[a-z]", line): # .*
         continue
@@ -130,13 +130,13 @@ for line in sys.stdin.readlines():
             values[label] = f"${label}"
             function_directive_written = False
 
-            if label[0] != "_" and IS_GLOBAL_PATCH:
-                after_fn_buffer += f"#export ${label}"
+            #if label[0] != "_" and IS_GLOBAL_PATCH:
+            #    after_fn_buffer += f"#export ${label}"
         elif in_function and function_directive_written:
             print(f"{INDENT}.{label[1:]}")
     elif in_function: # asm
         if not function_directive_written:
-            print(f"#new:Function ${label} {{")
+            print(f"#export:Function ${label} {{")
             function_directive_written = True
 
         line_parts = line.split(None, 1)
