@@ -54,7 +54,7 @@ LOAD_STORES = [
 ]
 
 GLOBAL_SYMBOLS = {}
-with open("papermario/ver/us/symbol_addrs.txt", "r") as f:
+with open("../papermario/ver/us/symbol_addrs.txt", "r") as f:
     for line in f.readlines():
         if match := re.match(r"^(\w+)\s*=\s*0x([0-9a-fA-F]+);", line): # .globl
             symbol = match[1]

@@ -14,6 +14,7 @@ You'll need:
 ```sh
 $ git init
 $ git submodule add https://github.com/nanaian/star-rod-c.git
+$ git submodule add https://github.com/pmret/papermario.git
 $ make -C star-rod-c setup
 ```
 
