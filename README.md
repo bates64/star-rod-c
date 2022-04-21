@@ -2,7 +2,7 @@
 
 Star Rod C is a tool that lets you compile C code to patch files using tools and headers from the [Paper Mario decompilation](https://github.com/ethteck/papermario). [Star Rod](https://github.com/nanaian/star-rod) is used as the assembler and linker.
 
-Currently supports Linux (Ubuntu, Arch) only, but the output is portable. You can also use WSL2 or a Linux VM.
+Supported platforms include [anything the decompilation compiles on](https://github.com/pmret/papermario/blob/master/install.sh). This includes a number of Linux distros, macOS, and WSL2.
 
 ### Installation
 
